@@ -3,6 +3,8 @@ package ua.kaganovych.weatherapp;
 import android.app.SearchManager;
 import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v7.widget.SearchView;
@@ -14,6 +16,7 @@ import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.melnykov.fab.FloatingActionButton;
 import com.squareup.picasso.Picasso;
@@ -84,53 +87,58 @@ public class MainActivity extends ActionBarActivity {
             @Override
             public boolean onQueryTextSubmit(String s) {
 
-                if (!TextUtils.isEmpty(s)) {
-                    ApiClient.getWeatherInterface().getWeather(s, new Callback<Result>() {
-                        @Override
-                        public void success(final Result result, Response response) {
-                            if (result.name == null) {
-                                Utils.showOkDialog(MainActivity.this, R.string.error_dialog_title, R.string.error_dialog_message);
-                            } else {
-                                InputMethodManager imm = (InputMethodManager)getSystemService(
-                                        Context.INPUT_METHOD_SERVICE);
-                                imm.hideSoftInputFromWindow(searchView.getWindowToken(), 0);
+                if (isNetworkAvailable()) {
 
-                                for (int id : ids) {
-                                    findViewById(id).setVisibility(View.VISIBLE);
-                                }
-
-                                mLocationLabel.setText(result.name);
-                                mTemperatureLabel.setText(String.valueOf(Math.round(result.main.temp - 273.15)));
-                                mHumidityValue.setText(String.valueOf(result.main.humidity + "%"));
-                                for (Weather weather : result.weather) {
-                                    mWeatherLabel.setText(weather.main);
-                                    mWeatherDesc.setText("(" + weather.description + ")");
-                                    Picasso.with(MainActivity.this).load("http://api.openweathermap.org/img/w/" + weather.icon + ".png").into(mIcon);
-                                }
-                                if (result.rain == null) {
-                                    mRainValue.setText("0");
+                    if (!TextUtils.isEmpty(s)) {
+                        ApiClient.getWeatherInterface().getWeather(s, new Callback<Result>() {
+                            @Override
+                            public void success(final Result result, Response response) {
+                                if (result.name == null) {
+                                    Utils.showOkDialog(MainActivity.this, R.string.error_dialog_title, R.string.error_dialog_message);
                                 } else {
-                                    mRainValue.setText(String.valueOf(result.rain._3h));
-                                }
-                                mFab.setVisibility(View.VISIBLE);
-                                mFab.setOnClickListener(new View.OnClickListener() {
-                                    @Override
-                                    public void onClick(View view) {
-                                        Intent intent = new Intent(MainActivity.this, MapsActivity.class);
-                                        intent.putExtra(LONGITUDE_VALUE, result.coord.lon);
-                                        intent.putExtra(LATITUDE_VALUE, result.coord.lat);
-                                        intent.putExtra(CITY_NAME, result.name);
-                                        startActivity(intent);
-                                    }
-                                });
-                            }
-                        }
+                                    InputMethodManager imm = (InputMethodManager) getSystemService(
+                                            Context.INPUT_METHOD_SERVICE);
+                                    imm.hideSoftInputFromWindow(searchView.getWindowToken(), 0);
 
-                        @Override
-                        public void failure(RetrofitError error) {
-                            error.getCause().printStackTrace();
-                        }
-                    });
+                                    for (int id : ids) {
+                                        findViewById(id).setVisibility(View.VISIBLE);
+                                    }
+
+                                    mLocationLabel.setText(result.name);
+                                    mTemperatureLabel.setText(String.valueOf(Math.round(result.main.temp - 273.15)));
+                                    mHumidityValue.setText(String.valueOf(result.main.humidity + "%"));
+                                    for (Weather weather : result.weather) {
+                                        mWeatherLabel.setText(weather.main);
+                                        mWeatherDesc.setText("(" + weather.description + ")");
+                                        Picasso.with(MainActivity.this).load("http://api.openweathermap.org/img/w/" + weather.icon + ".png").into(mIcon);
+                                    }
+                                    if (result.rain == null) {
+                                        mRainValue.setText("0");
+                                    } else {
+                                        mRainValue.setText(String.valueOf(result.rain._3h));
+                                    }
+                                    mFab.setVisibility(View.VISIBLE);
+                                    mFab.setOnClickListener(new View.OnClickListener() {
+                                        @Override
+                                        public void onClick(View view) {
+                                            Intent intent = new Intent(MainActivity.this, MapsActivity.class);
+                                            intent.putExtra(LONGITUDE_VALUE, result.coord.lon);
+                                            intent.putExtra(LATITUDE_VALUE, result.coord.lat);
+                                            intent.putExtra(CITY_NAME, result.name);
+                                            startActivity(intent);
+                                        }
+                                    });
+                                }
+                            }
+
+                            @Override
+                            public void failure(RetrofitError error) {
+                                error.getCause().printStackTrace();
+                            }
+                        });
+                    }
+                } else {
+                    Toast.makeText(MainActivity.this, "Network is unavailable", Toast.LENGTH_LONG).show();
                 }
 
                 return true;
@@ -148,5 +156,17 @@ public class MainActivity extends ActionBarActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         return super.onOptionsItemSelected(item);
+    }
+
+    private boolean isNetworkAvailable() {
+        ConnectivityManager manager = (ConnectivityManager)
+                getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo info = manager.getActiveNetworkInfo();
+        boolean isAvailable = false;
+        if (info != null && info.isConnected()) {
+            isAvailable = true;
+        }
+
+        return isAvailable;
     }
 }
